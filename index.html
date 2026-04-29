@@ -413,6 +413,13 @@
     color: #fff;
     border: 0.5px solid rgba(255,255,255,0.2);
   }
+ 
+ .btn-sheet {
+  background: #1D9E75;
+  color: #fff;
+  border: none;
+}
+.btn-sheet:hover { opacity: 0.85; }
 
   .btn-copy:hover { opacity: 0.8; }
 
@@ -670,7 +677,39 @@ function renderSummary(name, month, count) {
       const btn = document.getElementById('copy-btn');
       btn.textContent = '복사 완료!';
       setTimeout(() => { btn.textContent = '결과 텍스트 복사'; }, 2000);
+     <button class="action-btn btn-sheet" id="sheet-btn">구글 시트로 내보내기</button>
+     
     });
+
+ const SHEET_URL = 'https://script.google.com/macros/s/AKfycbwa2sYhuvXhCDEaJ6j0_jLaIUpay6A5kkOC-3Ffccw92cjPQm6_Jn2uYlGx7DljgTdKaQ/exec';
+
+document.getElementById('sheet-btn').onclick = async () => {
+  const btn = document.getElementById('sheet-btn');
+  btn.textContent = '전송 중...';
+  btn.disabled = true;
+
+  const payload = results.map(r => ({
+    name: r.studentName,
+    응답속도정확성: r.eval.응답속도정확성?.등급 || '',
+    주도적안내격려: r.eval.주도적안내격려?.등급 || '',
+    피드백구체성: r.eval.피드백구체성?.등급 || '',
+    정서적지지동기: r.eval.정서적지지동기?.등급 || '',
+  }));
+
+  try {
+    await fetch(SHEET_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    btn.textContent = '전송 완료!';
+    setTimeout(() => { btn.textContent = '구글 시트로 내보내기'; btn.disabled = false; }, 2000);
+  } catch(e) {
+    btn.textContent = '전송 실패';
+    btn.disabled = false;
+  }
+};
   };
 }
 </script>
