@@ -670,12 +670,13 @@ const SHEET_URL = '/api/sheet';
     btn.disabled = true;
 
     const payload = results.map(r => ({
-      name: r.studentName,
-      응답속도정확성: r.eval.응답속도정확성?.등급 || '',
-      주도적안내격려: r.eval.주도적안내격려?.등급 || '',
-      피드백구체성: r.eval.피드백구체성?.등급 || '',
-      정서적지지동기: r.eval.정서적지지동기?.등급 || '',
-    }));
+  name: r.studentName,
+  consultant: document.getElementById('consultant-name').value.trim(),
+  응답속도정확성: r.eval.응답속도정확성?.등급 || '',
+  주도적안내격려: r.eval.주도적안내격려?.등급 || '',
+  피드백구체성: r.eval.피드백구체성?.등급 || '',
+  정서적지지동기: r.eval.정서적지지동기?.등급 || '',
+}));
 
     try {
       await fetch(SHEET_URL, {
