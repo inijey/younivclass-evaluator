@@ -565,8 +565,7 @@ let results = [];
 
 async function analyzeFile(file) {
   const text = await file.text();
-  const studentName = file.name.replace(/\.txt$/, '');
-
+const studentName = file.name.replace(/\.txt$/, '').split('_')[0];
   const res = await fetch('/api/evaluate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
