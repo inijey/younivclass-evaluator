@@ -663,8 +663,7 @@ function renderSummary(name, month, count) {
 
   document.getElementById('summary-card').style.display = 'block';
 
-  const SHEET_URL = 'https://script.google.com/macros/s/AKfycbwa2sYhuvXhCDEaJ6j0_jLaIUpay6A5kkOC-3Ffccw92cjPQm6_Jn2uYlGx7DljgTdKaQ/exec';
-
+const SHEET_URL = '/api/sheet';
   document.getElementById('sheet-btn').onclick = async () => {
     const btn = document.getElementById('sheet-btn');
     btn.textContent = '전송 중...';
@@ -681,7 +680,7 @@ function renderSummary(name, month, count) {
     try {
       await fetch(SHEET_URL, {
         method: 'POST',
-        mode: 'no-cors',
+     
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
