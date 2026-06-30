@@ -546,7 +546,7 @@ fileInput.addEventListener('change', () => addFiles([...fileInput.files]));
 
 function addFiles(newFiles) {
   newFiles.forEach(f => {
-    if (f.name.endsWith('.txt') && !files.find(x => x.name === f.name)) files.push(f);
+    if ((f.name.endsWith('.txt') || f.name.endsWith('.csv')) && !files.find(x => x.name === f.name)) files.push(f);
   });
   renderFiles();
 }
@@ -565,11 +565,21 @@ let results = [];
 
 async function analyzeFile(file) {
   const text = await file.text();
-const studentName = file.name.replace(/\.txt$/, '').split('_')[0];
+  const isCSV = file.name.toLowerCase().endsWith('.csv');
+
+  // 학생 이름 추출: "생기부_" 다음 한글 단어, 없으면 첫 토큰
+  let studentName;
+  const nameMatch = file.name.match(/생기부_+([가-힣]+)/);
+  if (nameMatch) {
+    studentName = nameMatch[1];
+  } else {
+    studentName = file.name.replace(/\.(txt|csv)$/i, '').split('_')[0];
+  }
+
   const res = await fetch('/api/evaluate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ logText: text, studentName }),
+    body: JSON.stringify({ logText: text, studentName, targetMonth: monthSel.value, isCSV }),
   });
 
   if (!res.ok) {
