@@ -1,12 +1,117 @@
+// 간단한 CSV 파서 (콤마/줄바꿈이 따옴표 안에 포함된 경우도 처리)
+function parseCSV(text) {
+  // BOM 제거
+  text = text.replace(/^\uFEFF/, '');
+
+  const rows = [];
+  let row = [];
+  let field = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const next = text[i + 1];
+
+    if (inQuotes) {
+      if (char === '"' && next === '"') {
+        field += '"';
+        i++;
+      } else if (char === '"') {
+        inQuotes = false;
+      } else {
+        field += char;
+      }
+    } else {
+      if (char === '"') {
+        inQuotes = true;
+      } else if (char === ',') {
+        row.push(field);
+        field = '';
+      } else if (char === '\r') {
+        // skip
+      } else if (char === '\n') {
+        row.push(field);
+        rows.push(row);
+        row = [];
+        field = '';
+      } else {
+        field += char;
+      }
+    }
+  }
+  if (field.length > 0 || row.length > 0) {
+    row.push(field);
+    rows.push(row);
+  }
+  return rows;
+}
+
+// CSV 텍스트(Date,User,Message)를 대화 형식 텍스트로 변환하면서 특정 월만 필터링
+function csvToFilteredDialogue(csvText, targetMonth) {
+  const rows = parseCSV(csvText);
+  if (rows.length === 0) return '';
+
+  // 헤더 위치 확인
+  const header = rows[0].map(h => h.trim().toLowerCase());
+  const dateIdx = header.indexOf('date');
+  const userIdx = header.indexOf('user');
+  const msgIdx = header.indexOf('message');
+
+  // 헤더를 못 찾으면 기본 0,1,2번 컬럼으로 가정
+  const dIdx = dateIdx >= 0 ? dateIdx : 0;
+  const uIdx = userIdx >= 0 ? userIdx : 1;
+  const mIdx = msgIdx >= 0 ? msgIdx : 2;
+
+  const lines = [];
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r || r.length < 3) continue;
+
+    const dateStr = (r[dIdx] || '').trim();
+    const user = (r[uIdx] || '').trim();
+    const message = (r[mIdx] || '').trim();
+
+    if (!dateStr || !message) continue;
+
+    // 날짜에서 월 추출 (형식: YYYY-MM-DD HH:MM:SS)
+    const match = dateStr.match(/^\d{4}-(\d{2})-\d{2}/);
+    if (!match) continue;
+
+    const month = parseInt(match[1], 10);
+    if (targetMonth && month !== targetMonth) continue;
+
+    lines.push(`[${dateStr}] ${user}: ${message}`);
+  }
+
+  return lines.join('\n');
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { logText, studentName } = req.body;
+  const { logText, studentName, targetMonth, isCSV } = req.body;
 
   if (!logText || !studentName) {
     return res.status(400).json({ error: '필수 파라미터가 없습니다.' });
+  }
+
+  let processedText = logText;
+  let filteredCount = null;
+
+  if (isCSV) {
+    processedText = csvToFilteredDialogue(logText, targetMonth ? parseInt(targetMonth, 10) : null);
+    filteredCount = processedText ? processedText.split('\n').length : 0;
+
+    if (!processedText || processedText.trim().length === 0) {
+      return res.status(200).json({
+        응답속도정확성: { 등급: '하', 이유: `${targetMonth}월에 해당하는 대화 기록이 없어 평가할 수 없습니다.` },
+        주도적안내격려: { 등급: '하', 이유: `${targetMonth}월에 해당하는 대화 기록이 없어 평가할 수 없습니다.` },
+        피드백구체성: { 등급: '하', 이유: `${targetMonth}월에 해당하는 대화 기록이 없어 평가할 수 없습니다.` },
+        정서적지지동기: { 등급: '하', 이유: `${targetMonth}월에 해당하는 대화 기록이 없어 평가할 수 없습니다.` },
+      });
+    }
   }
 
   const CRITERIA = `
@@ -33,10 +138,14 @@ export default async function handler(req, res) {
  하: 정서적 표현이 거의 없거나, 업무적·딱딱한 소통 위주임
 `;
 
+  const monthNote = targetMonth
+    ? `\n\n중요: 아래 대화로그는 이미 ${targetMonth}월 대화만 필터링된 내용입니다. 이 기간의 소통만을 기준으로 평가하세요.`
+    : '';
+
   const SYSTEM_PROMPT = `당신은 교육 컨설팅 회사 유니브클래스의 컨설턴트 업무 평가 AI입니다.
 아래 기준에 따라 카카오톡 대화로그를 분석하고, 4개 영역 각각을 상/중/하로 평가하세요.
 
-${CRITERIA}
+${CRITERIA}${monthNote}
 
 반드시 아래 JSON 형식으로만 응답하세요 (다른 텍스트 없이):
 {
@@ -61,7 +170,7 @@ ${CRITERIA}
         messages: [
           {
             role: 'user',
-            content: `학생명: ${studentName}\n\n다음은 학생과의 카카오톡 대화로그입니다. 분석해주세요:\n\n${logText.slice(0, 8000)}`,
+            content: `학생명: ${studentName}${targetMonth ? `\n평가 대상 월: ${targetMonth}월` : ''}\n\n다음은 학생과의 카카오톡 대화로그입니다. 분석해주세요:\n\n${processedText.slice(0, 12000)}`,
           },
         ],
       }),
