@@ -569,12 +569,13 @@ async function analyzeFile(file) {
 
   // 학생 이름 추출: "생기부_" 다음 한글 단어, 없으면 첫 토큰
   let studentName;
-  const nameMatch = file.name.match(/생기부_+([가-힣]+)/);
-  if (nameMatch) {
-    studentName = nameMatch[1];
-  } else {
-    studentName = file.name.replace(/\.(txt|csv)$/i, '').split('_')[0];
-  }
+const nameMatch = file.name.match(/생기부[_\s]*([가-힣]{2,4})/);
+if (nameMatch) {
+  studentName = nameMatch[1];
+} else {
+  studentName = file.name.replace(/\.(txt|csv)$/i, '').split(/[_\s]+/).filter(s => /[가-힣]/.test(s))[0] || file.name;
+}
+console.log('파일명:', file.name, '→ 추출된 이름:', studentName);
 
   const res = await fetch('/api/evaluate', {
     method: 'POST',
